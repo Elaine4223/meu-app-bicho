@@ -3,40 +3,37 @@ import random
 from datetime import datetime
 
 def puxar_resultados():
-    loterias = ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"]
-    # Horários padrão
-    horarios_todos = ["11:00", "14:00", "16:00", "18:00", "21:00"]
+    # TABELA DE HORÁRIOS REAIS FORNECIDA PELA ELAINE
+    loterias_config = {
+        "NACIONAL": ["02:00", "08:00", "10:00", "12:00", "15:00", "17:00", "21:00", "23:00"],
+        "PT-RIO": ["09:30", "11:30", "14:30", "16:30", "18:30", "21:30"],
+        "LOOK": ["07:20", "09:20", "11:20", "14:20", "16:20", "18:20", "21:20", "23:20"],
+        "MALUQUINHA": ["09:00", "11:00", "14:00", "16:00", "18:00", "21:00"]
+    }
     
-    # Pega a hora exata agora
     agora = datetime.now()
     hora_atual = agora.strftime("%H:%M")
-    
     lista_final = []
     
-    for loteria in loterias:
-        for hora in horarios_todos:
-            # SÓ ADICIONA SE O HORÁRIO JÁ PASSOU NO RELÓGIO
+    for loteria, horarios in loterias_config.items():
+        for hora in horarios:
+            # SÓ MOSTRA SE O HORÁRIO JÁ PASSOU NO RELÓGIO REAL
             if hora <= hora_atual:
                 grupo_int = random.randint(1, 25)
                 grupo_str = str(grupo_int).zfill(2)
                 
-                # Regra matemática das dezenas (AMARRADO)
-                dezena_max = grupo_int * 4
-                dezenas_possiveis = [dezena_max, dezena_max-1, dezena_max-2, dezena_max-3]
-                dezenas_corrigidas = [str(d).replace('100', '00').zfill(2) for d in dezenas_possiveis]
+                # Regra das dezenas (Garante que o bicho esteja certo)
+                dez_max = grupo_int * 4
+                dezenas = [str(d).replace('100', '00').zfill(2) for d in [dez_max, dez_max-1, dez_max-2, dez_max-3]]
                 
-                dezena_sorteada = random.choice(dezenas_corrigidas)
-                milhar_correto = str(random.randint(10, 99)) + dezena_sorteada
+                dezena_sorteada = random.choice(dezenas)
+                milhar = str(random.randint(10, 99)) + dezena_sorteada
                 
                 lista_final.append({
                     "Loteria": loteria,
                     "Horário": hora,
-                    "Milhar": milhar_correto,
+                    "Milhar": milhar,
                     "Grupo": grupo_str
                 })
     
-    # Se ainda não deu 11h, mostra um aviso amigável
-    if not lista_final:
-        return pd.DataFrame(columns=["Loteria", "Horário", "Milhar", "Grupo"])
-        
     return pd.DataFrame(lista_final)
