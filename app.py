@@ -31,7 +31,6 @@ if 'dados' in st.session_state:
     
     # --- 1. RESUMO DOS ÚLTIMOS HORÁRIOS (APENAS HOJE) ---
     st.subheader(f"📅 Resultados de Hoje - {datetime.now().strftime('%d/%m')}")
-    # Aqui o código já assume os dados mais recentes do dia
     ultimos_hoje = df_filtrado.head(5) 
     cols = st.columns(len(ultimos_hoje))
     for i, (idx, row) in enumerate(ultimos_hoje.iterrows()):
@@ -51,6 +50,7 @@ if 'dados' in st.session_state:
         st.subheader("🎯 Palpites VIP")
         
         # Lógica de Probabilidade do Grupo para o Próximo Sorteio
+        # Escolhe um grupo que não saiu nos últimos 3 horários
         grupo_provavel = random.choice([g for g in BICHO_MAP.keys() if g not in df_filtrado['Grupo'].head(3).tolist()])
         
         st.markdown(f"""
@@ -62,8 +62,16 @@ if 'dados' in st.session_state:
         
         st.write("")
         st.markdown(f"<div style='background-color:#333;padding:10px;border-radius:10px;color:white'><b>💡 Milhares Sugeridos</b></div>", unsafe_allow_html=True)
+        
+        # --- LÓGICA DE DEZENAS CORRIGIDA ---
         for _ in range(2):
-            m = str(random.randint(10, 99)) + str(random.randint(int(grupo_provavel)*4-3, int(grupo_provavel)*4)).zfill(2)
+            g_int = int(grupo_provavel)
+            d_max = g_int * 4
+            # Escolhe uma dezena entre as 4 do grupo e corrige o "100" para "00"
+            d_sorteada = random.randint(d_max-3, d_max)
+            d_final = str(d_sorteada).replace('100', '00').zfill(2)
+            # Monta o milhar final
+            m = str(random.randint(10, 99)) + d_final
             st.write(f"Milhar: **{m}** | Centena: {m[1:]}")
 
     # --- 3. TERMÔMETRO ---
@@ -82,7 +90,9 @@ if 'dados' in st.session_state:
         ganhou = df_filtrado[df_filtrado['Milhar'].str.contains(meu_palpite) | (df_filtrado['Grupo'] == meu_palpite)]
         if not ganhou.empty:
             st.sidebar.balloons()
-            premio = valor_aposta * 15 # Exemplo de prêmio proporcional
+            # Cálculo de prêmio (exemplo: milhar paga 4000x, grupo paga 15x)
+            fator = 4000 if len(meu_palpite) == 4 else 15
+            premio = valor_aposta * fator
             st.sidebar.success(f"✅ GANHOU! Prêmio est.: R$ {premio:.2f}")
         else:
             st.sidebar.error("❌ Não saiu ainda.")
