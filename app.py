@@ -3,9 +3,10 @@ import pandas as pd
 import plotly.express as px
 import random
 
+# CONFIGURAÇÃO DE PÁGINA (Igual image_3298f6)
 st.set_page_config(page_title="Monitor Vip Pro - Elaine", layout="wide")
 
-# --- BANCO DE DADOS DE BICHOS E EMOJIS OFICIAL ---
+# --- BANCO DE DADOS DE BICHOS OFICIAL ---
 BICHO_MAP = {
     "01": "🦩 Avestruz", "02": "🦅 Águia", "03": "🦙 Burro", "04": "🦋 Borboleta", 
     "05": "🐕 Cachorro", "06": "🐐 Cabra", "07": "🐑 Carneiro", "08": "🐪 Camelo", 
@@ -23,91 +24,88 @@ def identificar_grupo(milhar):
         return str(min(grupo, 25)).zfill(2)
     except: return "01"
 
-# Inicialização do banco de dados na sessão
-if 'historico_vips' not in st.session_state:
-    st.session_state.historico_vips = []
+# CORES POR LOTERIA (Conforme image_315a3e)
+CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUINHA": "#C71585"}
 
-# --- 1. PAINEL ADMINISTRATIVO (Lançamento) ---
-st.title("🏆 Painel Administrativo - Monitor Vip")
-with st.expander("📝 Clique aqui para lançar novos resultados (1º ao 5º)", expanded=True):
+# --- INICIALIZAÇÃO DOS DADOS REAIS ---
+if 'historico_vips' not in st.session_state:
+    st.session_state.historico_vips = [
+        {"Loteria": "NACIONAL", "Horário": "12:00", "Prêmio": "1º", "Milhar": "7261", "Grupo": "16", "Bicho": "🦁 Leão"},
+        {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "1º", "Milhar": "0651", "Grupo": "13", "Bicho": "🐓 Galo"},
+        {"Loteria": "NACIONAL", "Horário": "02:00", "Prêmio": "1º", "Milhar": "6028", "Grupo": "07", "Bicho": "🐑 Carneiro"},
+        {"Loteria": "PT-RIO", "Horário": "14:30", "Prêmio": "1º", "Milhar": "6168", "Grupo": "17", "Bicho": "🐒 Macaco"},
+        {"Loteria": "PT-RIO", "Horário": "11:30", "Prêmio": "1º", "Milhar": "6378", "Grupo": "20", "Bicho": "🦃 Peru"},
+        {"Loteria": "PT-RIO", "Horário": "09:30", "Prêmio": "1º", "Milhar": "8576", "Grupo": "19", "Bicho": "🦚 Pavão"}
+    ]
+
+# --- PAINEL DE LANÇAMENTO (DISCRETO NO TOPO) ---
+with st.expander("📥 Central de Lançamento de Resultados", expanded=False):
     with st.form("form_venda", clear_on_submit=True):
-        col_l, col_h = st.columns(2)
-        loto_input = col_l.selectbox("Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
-        hora_input = col_h.text_input("Horário (Ex: 14:30):")
-        
-        st.write("Insira os milhares sorteados:")
-        p1, p2, p3, p4, p5 = st.columns(5)
-        m1 = p1.text_input("1º Prêmio")
-        m2 = p2.text_input("2º Prêmio")
-        m3 = p3.text_input("3º Prêmio")
-        m4 = p4.text_input("4º Prêmio")
-        m5 = p5.text_input("5º Prêmio")
-        
-        if st.form_submit_button("🚀 Publicar e Analisar"):
-            for m, p in zip([m1, m2, m3, m4, m5], ["1º", "2º", "3º", "4º", "5º"]):
+        c1, c2 = st.columns(2)
+        l_in = c1.selectbox("Loteria:", list(CORES.keys()))
+        h_in = c2.text_input("Horário (Ex: 15:00):")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        res_m = [m1.text_input("1º"), m2.text_input("2º"), m3.text_input("3º"), m4.text_input("4º"), m5.text_input("5º")]
+        if st.form_submit_button("🚀 Atualizar Monitor"):
+            for m, p in zip(res_m, ["1º", "2º", "3º", "4º", "5º"]):
                 if m:
                     g = identificar_grupo(m)
-                    st.session_state.historico_vips.append({
-                        "Loteria": loto_input, "Horário": hora_input, "Prêmio": p, 
-                        "Milhar": m, "Grupo": g, "Bicho": BICHO_MAP[g]
-                    })
-            st.success("Resultados integrados!")
+                    st.session_state.historico_vips.append({"Loteria": l_in, "Horário": h_in, "Prêmio": p, "Milhar": m, "Grupo": g, "Bicho": BICHO_MAP[g]})
+            st.rerun()
+
+# --- INTERFACE VISUAL (Restaurada da image_3298f6) ---
+df = pd.DataFrame(st.session_state.historico_vips)
+escolha = st.selectbox("Selecione a Loteria para Análise:", list(CORES.keys()))
+cor = CORES.get(escolha)
+
+st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 Resultados de Hoje: {escolha}</h1>", unsafe_allow_html=True)
+
+df_f = df[df['Loteria'] == escolha].sort_values(by="Horário", ascending=False)
+df_c = df_f[df_f['Prêmio'] == "1º"]
+
+# 1. CARDS COLORIDOS (Igual image_32379f)
+if not df_c.empty:
+    cols = st.columns(len(df_c.head(4)))
+    for i, (idx, row) in enumerate(df_c.head(4).iterrows()):
+        with cols[i]:
+            st.metric(label=f"Hora: {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
 
 st.divider()
 
-# --- 2. INTERFACE DE ANÁLISE (O que o comprador verá logo abaixo) ---
-if st.session_state.historico_vips:
-    df = pd.DataFrame(st.session_state.historico_vips)
-    
-    loto_sel = st.selectbox("Selecione a Loteria para ver a Análise:", df['Loteria'].unique())
-    df_filtrado = df[df['Loteria'] == loto_sel].sort_values(by="Horário", ascending=False)
-    
-    st.header(f"📍 Análise VIP: {loto_sel}")
+# 2. HISTÓRICO E PALPITES VIP (Lado a lado como na image_3298f6)
+col_tab, col_palp = st.columns([1.5, 1])
 
-    # --- CARDS DE HOJE (Interfaces anteriores) ---
-    df_cabeca = df_filtrado[df_filtrado['Prêmio'] == "1º"]
-    if not df_cabeca.empty:
-        st.subheader("📅 Resumo dos Últimos Sorteios")
-        cols = st.columns(len(df_cabeca.head(4)))
-        for i, (idx, row) in enumerate(df_cabeca.head(4).iterrows()):
-            with cols[i]:
-                st.metric(label=f"Hora: {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
+with col_tab:
+    st.subheader("🕒 Histórico do Dia")
+    st.table(df_f[['Horário', 'Prêmio', 'Milhar', 'Bicho']].head(10))
 
-    st.divider()
+with col_palp:
+    st.subheader("🎯 Palpites VIP")
+    g_fora = [g for g in BICHO_MAP.keys() if g not in df_c['Grupo'].tolist()]
+    if g_fora:
+        sug = random.choice(g_fora)
+        st.markdown(f"<div style='background-color:{cor}; padding:20px; border-radius:15px; color:white; text-align:center;'><b>PRÓXIMO GRUPO PROVÁVEL</b><br><span style='font-size: 32px; font-weight: bold;'>{BICHO_MAP[sug]}</span></div>", unsafe_allow_html=True)
+        
+        g_i = int(sug)
+        d_f = str(g_i * 4).replace('100','00').zfill(2)
+        st.write(f"💡 **Milhares Sugeridos:** {random.randint(10,99)}{d_f} | {random.randint(10,99)}{str(g_i*4-1).zfill(2)}")
 
-    # --- TABELA E PALPITES (Interfaces anteriores) ---
-    c_tab, c_palp = st.columns([1.5, 1])
-    
-    with c_tab:
-        st.subheader("🕒 Histórico do Dia (1º ao 5º)")
-        st.dataframe(df_filtrado[['Horário', 'Prêmio', 'Milhar', 'Bicho']], use_container_width=True)
+# 3. TERMÔMETRO (Igual image_3298f6)
+st.divider()
+st.subheader("🔥 Termômetro de Bichos (Frequência do Dia)")
+if not df_c.empty:
+    freq = df_c['Bicho'].value_counts().reset_index()
+    fig = px.bar(freq, x='index', y='Bicho', color='Bicho', text_auto=True, color_continuous_scale=[[0, '#eee'], [1, cor]])
+    st.plotly_chart(fig, use_container_width=True)
 
-    with c_palp:
-        st.subheader("🎯 Palpites VIP")
-        grupos_vivos = [g for g in BICHO_MAP.keys() if g not in df_cabeca['Grupo'].tolist()]
-        if grupos_vivos:
-            sugestao = random.choice(grupos_vivos)
-            st.markdown(f"""
-            <div style='background-color:#4169E1; padding:20px; border-radius:15px; color:white; text-align:center;'>
-                <span style='font-size: 16px;'>PRÓXIMO GRUPO PROVÁVEL</span><br>
-                <span style='font-size: 30px; font-weight: bold;'>{BICHO_MAP[sugestao]}</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Sugestão de Centenas e Dezenas
-            g_int = int(sugestao)
-            d_base = g_int * 4
-            dezenas = [str(d_base).replace('100','00').zfill(2), str(d_base-1).zfill(2)]
-            st.write(f"💡 **Centenas Fortes:** {random.randint(1,9)}{dezenas[0]} | {random.randint(1,9)}{dezenas[1]}")
-            st.write(f"💡 **Dezenas do Grupo:** {dezenas[0]}, {dezenas[1]}")
-
-    # --- TERMÔMETRO E GRÁFICOS (Interfaces anteriores) ---
-    st.divider()
-    st.subheader("🔥 Termômetro: Frequência do 1º Prêmio")
-    if not df_cabeca.empty:
-        freq = df_cabeca['Bicho'].value_counts().reset_index()
-        fig = px.bar(freq, x='index', y='Bicho', labels={'index':'Bicho', 'Bicho':'Qtd'}, 
-                     color='Bicho', text_auto=True)
-        st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("Aguardando o primeiro lançamento no painel acima para ativar as interfaces de análise.")
+# 4. SIMULADOR NA LATERAL (Restaurado da image_32ab3d)
+st.sidebar.header(f"🎰 Simulador ({escolha})")
+meu_p = st.sidebar.text_input("Seu Palpite:")
+valor = st.sidebar.number_input("Valor da Aposta (R$):", 1.0, 100.0, 1.0)
+if meu_p:
+    ganhou = df_f[df_f['Milhar'].str.contains(meu_p) | (df_f['Grupo'] == meu_p)]
+    if not ganhou.empty:
+        st.sidebar.balloons()
+        st.sidebar.success(f"✅ GANHOU! Prêmio: R$ {valor * 15:.2f}")
+    else:
+        st.sidebar.error("❌ Não saiu ainda.")
