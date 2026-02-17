@@ -87,27 +87,15 @@ with col_palp:
         d_f = str(g_i * 4).replace('100','00').zfill(2)
         st.write(f"💡 **Milhares Sugeridos:** {random.randint(10,99)}{d_f} | {random.randint(10,99)}{str(g_i*4-1).zfill(2)}")
 
-# 3. TERMÔMETRO (TRAVA DE SEGURANÇA CONTRA ERROS)
+# 3. TERMÔMETRO
 st.divider()
 st.subheader("🔥 Termômetro de Bichos (Frequência do Dia)")
 if not df_c.empty:
     freq = df_c['Bicho'].value_counts().reset_index()
-    freq.columns = ['Bicho', 'Qtd']  # Renomeia colunas para evitar o erro de index
+    freq.columns = ['Bicho', 'Qtd']
     try:
         fig = px.bar(freq, x='Bicho', y='Qtd', color='Bicho', text_auto=True, 
                      color_continuous_scale=[[0, '#eee'], [1, cor]])
         st.plotly_chart(fig, use_container_width=True)
     except Exception:
         st.info("O gráfico será exibido assim que houver mais de um resultado lançado.")
-
-# 4. SIMULADOR NA LATERAL
-st.sidebar.header(f"🎰 Simulador ({escolha})")
-meu_p = st.sidebar.text_input("Seu Palpite:")
-valor = st.sidebar.number_input("Valor da Aposta (R$):", 1.0, 100.0, 1.0)
-if meu_p:
-    ganhou = df_f[df_f['Milhar'].str.contains(meu_p) | (df_f['Grupo'] == meu_p)]
-    if not ganhou.empty:
-        st.sidebar.balloons()
-        st.sidebar.success(f"✅ GANHOU! Prêmio: R$ {valor * 15:.2f}")
-    else:
-        st.sidebar.error("❌ Não saiu ainda.")
