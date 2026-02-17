@@ -3,10 +3,9 @@ import pandas as pd
 import plotly.express as px
 import random
 
-# Configurações de layout
-st.set_page_config(page_title="Monitor Vip Pro - Gestão de Resultados", layout="wide")
+st.set_page_config(page_title="Monitor Vip Pro - Elaine", layout="wide")
 
-# --- BANCO DE DADOS DE BICHOS E EMOJIS ---
+# --- BANCO DE DADOS DE BICHOS E EMOJIS OFICIAL ---
 BICHO_MAP = {
     "01": "🦩 Avestruz", "02": "🦅 Águia", "03": "🦙 Burro", "04": "🦋 Borboleta", 
     "05": "🐕 Cachorro", "06": "🐐 Cabra", "07": "🐑 Carneiro", "08": "🐪 Camelo", 
@@ -16,29 +15,27 @@ BICHO_MAP = {
     "21": "🐂 Touro", "22": "🐅 Tigre", "23": "🐻 Urso", "24": "🦌 Veado", "25": "🐄 Vaca"
 }
 
-# Função para identificar o grupo automaticamente pela milhar
 def identificar_grupo(milhar):
     try:
         dezena = int(str(milhar)[-2:])
         if dezena == 0: return "25"
         grupo = (dezena - 1) // 4 + 1
         return str(min(grupo, 25)).zfill(2)
-    except:
-        return "01"
+    except: return "01"
 
 # Inicialização do banco de dados na sessão
-if 'historico_resultados' not in st.session_state:
-    st.session_state.historico_resultados = []
+if 'historico_vips' not in st.session_state:
+    st.session_state.historico_vips = []
 
-# --- INTERFACE DE LANÇAMENTO (VISÍVEL PARA O COMPRADOR) ---
-st.title("🏆 Painel Administrativo - Lançamento de Resultados")
-with st.expander("➕ Clique aqui para lançar um novo resultado", expanded=True):
-    with st.form("form_lancamento", clear_on_submit=True):
-        c1, c2 = st.columns(2)
-        loteria_input = c1.selectbox("Selecione a Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
-        horario_input = c2.text_input("Horário (Ex: 11:30):")
+# --- 1. PAINEL ADMINISTRATIVO (Lançamento) ---
+st.title("🏆 Painel Administrativo - Monitor Vip")
+with st.expander("📝 Clique aqui para lançar novos resultados (1º ao 5º)", expanded=True):
+    with st.form("form_venda", clear_on_submit=True):
+        col_l, col_h = st.columns(2)
+        loto_input = col_l.selectbox("Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
+        hora_input = col_h.text_input("Horário (Ex: 14:30):")
         
-        st.write("Digite os milhares do 1º ao 5º prêmio:")
+        st.write("Insira os milhares sorteados:")
         p1, p2, p3, p4, p5 = st.columns(5)
         m1 = p1.text_input("1º Prêmio")
         m2 = p2.text_input("2º Prêmio")
@@ -46,72 +43,71 @@ with st.expander("➕ Clique aqui para lançar um novo resultado", expanded=True
         m4 = p4.text_input("4º Prêmio")
         m5 = p5.text_input("5º Prêmio")
         
-        if st.form_submit_button("🚀 Publicar Resultados"):
-            novos_itens = []
+        if st.form_submit_button("🚀 Publicar e Analisar"):
             for m, p in zip([m1, m2, m3, m4, m5], ["1º", "2º", "3º", "4º", "5º"]):
                 if m:
                     g = identificar_grupo(m)
-                    novos_itens.append({
-                        "Loteria": loteria_input, 
-                        "Horário": horario_input, 
-                        "Prêmio": p, 
-                        "Milhar": m, 
-                        "Grupo": g,
-                        "Bicho": BICHO_MAP[g]
+                    st.session_state.historico_vips.append({
+                        "Loteria": loto_input, "Horário": hora_input, "Prêmio": p, 
+                        "Milhar": m, "Grupo": g, "Bicho": BICHO_MAP[g]
                     })
-            st.session_state.historico_resultados.extend(novos_itens)
-            st.success("Painel atualizado com sucesso!")
+            st.success("Resultados integrados!")
 
 st.divider()
 
-# --- EXIBIÇÃO E ANÁLISE ---
-if st.session_state.historico_resultados:
-    df = pd.DataFrame(st.session_state.historico_resultados)
+# --- 2. INTERFACE DE ANÁLISE (O que o comprador verá logo abaixo) ---
+if st.session_state.historico_vips:
+    df = pd.DataFrame(st.session_state.historico_vips)
     
-    # Filtro Lateral
-    st.sidebar.header("Filtros de Visualização")
-    loto_selecionada = st.sidebar.selectbox("Escolha a Loteria para Analisar:", df['Loteria'].unique())
+    loto_sel = st.selectbox("Selecione a Loteria para ver a Análise:", df['Loteria'].unique())
+    df_filtrado = df[df['Loteria'] == loto_sel].sort_values(by="Horário", ascending=False)
     
-    df_filtrado = df[df['Loteria'] == loto_selecionada].sort_values(by="Horário", ascending=False)
-    
-    st.header(f"📍 Análise do Dia: {loto_selecionada}")
+    st.header(f"📍 Análise VIP: {loto_sel}")
 
-    # 1. Cards do 1º Prêmio (Resumo Visual)
+    # --- CARDS DE HOJE (Interfaces anteriores) ---
     df_cabeca = df_filtrado[df_filtrado['Prêmio'] == "1º"]
     if not df_cabeca.empty:
-        cols = st.columns(len(df_cabeca.head(5)))
-        for i, (idx, row) in enumerate(df_cabeca.head(5).iterrows()):
+        st.subheader("📅 Resumo dos Últimos Sorteios")
+        cols = st.columns(len(df_cabeca.head(4)))
+        for i, (idx, row) in enumerate(df_cabeca.head(4).iterrows()):
             with cols[i]:
                 st.metric(label=f"Hora: {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
 
-    # 2. Tabela de Resultados e Palpites
-    col_tab, col_palpite = st.columns([1.5, 1])
+    st.divider()
+
+    # --- TABELA E PALPITES (Interfaces anteriores) ---
+    c_tab, c_palp = st.columns([1.5, 1])
     
-    with col_tab:
-        st.subheader("🕒 Histórico Completo (1-5)")
+    with c_tab:
+        st.subheader("🕒 Histórico do Dia (1º ao 5º)")
         st.dataframe(df_filtrado[['Horário', 'Prêmio', 'Milhar', 'Bicho']], use_container_width=True)
 
-    with col_palpite:
-        st.subheader("🎯 Palpites VIP para Próximo Sorteio")
-        # Sugere grupos que ainda não saíram no 1º prêmio
-        grupos_fora = [g for g in BICHO_MAP.keys() if g not in df_cabeca['Grupo'].tolist()]
-        if grupos_fora:
-            sugestao = random.choice(grupos_fora)
-            st.info(f"O Bicho mais provável agora é: **{BICHO_MAP[sugestao]}**")
-        
-        st.markdown("---")
-        st.write("💰 **Simulador de Prêmios**")
-        valor_aposta = st.number_input("Valor (R$):", 1.0, 100.0, 2.0)
-        st.write(f"Acerto de Milhar: R$ {valor_aposta * 4000:.2f}")
-        st.write(f"Acerto de Grupo: R$ {valor_aposta * 18:.2f}")
+    with c_palp:
+        st.subheader("🎯 Palpites VIP")
+        grupos_vivos = [g for g in BICHO_MAP.keys() if g not in df_cabeca['Grupo'].tolist()]
+        if grupos_vivos:
+            sugestao = random.choice(grupos_vivos)
+            st.markdown(f"""
+            <div style='background-color:#4169E1; padding:20px; border-radius:15px; color:white; text-align:center;'>
+                <span style='font-size: 16px;'>PRÓXIMO GRUPO PROVÁVEL</span><br>
+                <span style='font-size: 30px; font-weight: bold;'>{BICHO_MAP[sugestao]}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Sugestão de Centenas e Dezenas
+            g_int = int(sugestao)
+            d_base = g_int * 4
+            dezenas = [str(d_base).replace('100','00').zfill(2), str(d_base-1).zfill(2)]
+            st.write(f"💡 **Centenas Fortes:** {random.randint(1,9)}{dezenas[0]} | {random.randint(1,9)}{dezenas[1]}")
+            st.write(f"💡 **Dezenas do Grupo:** {dezenas[0]}, {dezenas[1]}")
 
-    # 3. Termômetro (Gráfico de Frequência)
+    # --- TERMÔMETRO E GRÁFICOS (Interfaces anteriores) ---
     st.divider()
-    st.subheader("🔥 Termômetro: Bichos mais Frequentes (1º Prêmio)")
-    freq = df_cabeca['Bicho'].value_counts().reset_index()
-    if not freq.empty:
-        fig = px.bar(freq, x='index', y='Bicho', labels={'index': 'Bicho', 'Bicho': 'Qtd Saídas'}, 
+    st.subheader("🔥 Termômetro: Frequência do 1º Prêmio")
+    if not df_cabeca.empty:
+        freq = df_cabeca['Bicho'].value_counts().reset_index()
+        fig = px.bar(freq, x='index', y='Bicho', labels={'index':'Bicho', 'Bicho':'Qtd'}, 
                      color='Bicho', text_auto=True)
         st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Aguardando o primeiro lançamento de resultados para gerar as análises.")
+    st.info("Aguardando o primeiro lançamento no painel acima para ativar as interfaces de análise.")
