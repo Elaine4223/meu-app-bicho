@@ -2,72 +2,116 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import random
-from scraper import puxar_resultados
 
-st.set_page_config(page_title="Monitor Vip - Elaine", layout="wide")
+# Configurações de layout
+st.set_page_config(page_title="Monitor Vip Pro - Gestão de Resultados", layout="wide")
 
-BICHO_MAP = {f"{i:02d}": bicho for i, bicho in enumerate(["Avestruz", "Águia", "Burro", "Borboleta", "Cachorro", "Cabra", "Carneiro", "Camelo", "Cobra", "Coelho", "Cavalo", "Elefante", "Galo", "Gato", "Jacaré", "Leão", "Macaco", "Porco", "Pavão", "Peru", "Touro", "Tigre", "Urso", "Veado", "Vaca"], 1)}
-CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUINHA": "#C71585"}
+# --- BANCO DE DADOS DE BICHOS E EMOJIS ---
+BICHO_MAP = {
+    "01": "🦩 Avestruz", "02": "🦅 Águia", "03": "🦙 Burro", "04": "🦋 Borboleta", 
+    "05": "🐕 Cachorro", "06": "🐐 Cabra", "07": "🐑 Carneiro", "08": "🐪 Camelo", 
+    "09": "🐍 Cobra", "10": "🐇 Coelho", "11": "🐎 Cavalo", "12": "🐘 Elefante", 
+    "13": "🐓 Galo", "14": "🐈 Gato", "15": "🐊 Jacaré", "16": "🦁 Leão", 
+    "17": "🐒 Macaco", "18": "🐖 Porco", "19": "🦚 Pavão", "20": "🦃 Peru", 
+    "21": "🐂 Touro", "22": "🐅 Tigre", "23": "🐻 Urso", "24": "🦌 Veado", "25": "🐄 Vaca"
+}
 
-st.title("🏆 Monitor Vip Pro - Elaine")
+# Função para identificar o grupo automaticamente pela milhar
+def identificar_grupo(milhar):
+    try:
+        dezena = int(str(milhar)[-2:])
+        if dezena == 0: return "25"
+        grupo = (dezena - 1) // 4 + 1
+        return str(min(grupo, 25)).zfill(2)
+    except:
+        return "01"
 
-if st.button("🔄 Atualizar Resultados Agora"):
-    st.session_state.dados = puxar_resultados()
+# Inicialização do banco de dados na sessão
+if 'historico_resultados' not in st.session_state:
+    st.session_state.historico_resultados = []
 
-if 'dados' in st.session_state and not st.session_state.dados.empty:
-    df = st.session_state.dados.copy()
-    df['Bicho'] = df['Grupo'].map(BICHO_MAP)
+# --- INTERFACE DE LANÇAMENTO (VISÍVEL PARA O COMPRADOR) ---
+st.title("🏆 Painel Administrativo - Lançamento de Resultados")
+with st.expander("➕ Clique aqui para lançar um novo resultado", expanded=True):
+    with st.form("form_lancamento", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        loteria_input = c1.selectbox("Selecione a Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
+        horario_input = c2.text_input("Horário (Ex: 11:30):")
+        
+        st.write("Digite os milhares do 1º ao 5º prêmio:")
+        p1, p2, p3, p4, p5 = st.columns(5)
+        m1 = p1.text_input("1º Prêmio")
+        m2 = p2.text_input("2º Prêmio")
+        m3 = p3.text_input("3º Prêmio")
+        m4 = p4.text_input("4º Prêmio")
+        m5 = p5.text_input("5º Prêmio")
+        
+        if st.form_submit_button("🚀 Publicar Resultados"):
+            novos_itens = []
+            for m, p in zip([m1, m2, m3, m4, m5], ["1º", "2º", "3º", "4º", "5º"]):
+                if m:
+                    g = identificar_grupo(m)
+                    novos_itens.append({
+                        "Loteria": loteria_input, 
+                        "Horário": horario_input, 
+                        "Prêmio": p, 
+                        "Milhar": m, 
+                        "Grupo": g,
+                        "Bicho": BICHO_MAP[g]
+                    })
+            st.session_state.historico_resultados.extend(novos_itens)
+            st.success("Painel atualizado com sucesso!")
+
+st.divider()
+
+# --- EXIBIÇÃO E ANÁLISE ---
+if st.session_state.historico_resultados:
+    df = pd.DataFrame(st.session_state.historico_resultados)
     
-    escolha = st.selectbox("Selecione a Loteria:", list(CORES.keys()))
-    cor = CORES.get(escolha)
+    # Filtro Lateral
+    st.sidebar.header("Filtros de Visualização")
+    loto_selecionada = st.sidebar.selectbox("Escolha a Loteria para Analisar:", df['Loteria'].unique())
     
-    df_filtrado = df[df['Loteria'] == escolha].sort_values(by="Horário", ascending=False)
+    df_filtrado = df[df['Loteria'] == loto_selecionada].sort_values(by="Horário", ascending=False)
     
-    st.markdown(f"<h2 style='color: {cor}; text-align: center;'>📍 Resultados de Hoje: {escolha}</h2>", unsafe_allow_html=True)
-    
-    # 1. CARDS DE RESULTADOS
-    ultimos = df_filtrado.head(5)
-    cols = st.columns(len(ultimos) if not ultimos.empty else 1)
-    for i, (idx, row) in enumerate(ultimos.iterrows()):
-        with cols[i]:
-            st.metric(label=f"Hora: {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
+    st.header(f"📍 Análise do Dia: {loto_selecionada}")
 
-    st.divider()
+    # 1. Cards do 1º Prêmio (Resumo Visual)
+    df_cabeca = df_filtrado[df_filtrado['Prêmio'] == "1º"]
+    if not df_cabeca.empty:
+        cols = st.columns(len(df_cabeca.head(5)))
+        for i, (idx, row) in enumerate(df_cabeca.head(5).iterrows()):
+            with cols[i]:
+                st.metric(label=f"Hora: {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
 
-    # 2. HISTÓRICO E PROJEÇÃO
-    col_tab, col_prob = st.columns([1.5, 1])
+    # 2. Tabela de Resultados e Palpites
+    col_tab, col_palpite = st.columns([1.5, 1])
     
     with col_tab:
-        st.subheader("🕒 Histórico do Dia")
-        st.table(df_filtrado[['Horário', 'Milhar', 'Grupo', 'Bicho']])
+        st.subheader("🕒 Histórico Completo (1-5)")
+        st.dataframe(df_filtrado[['Horário', 'Prêmio', 'Milhar', 'Bicho']], use_container_width=True)
 
-    with col_prob:
-        st.subheader("🎯 Palpites e Projeções")
-        grupo_provavel = random.choice([g for g in BICHO_MAP.keys() if g not in df_filtrado['Grupo'].head(2).tolist()])
+    with col_palpite:
+        st.subheader("🎯 Palpites VIP para Próximo Sorteio")
+        # Sugere grupos que ainda não saíram no 1º prêmio
+        grupos_fora = [g for g in BICHO_MAP.keys() if g not in df_cabeca['Grupo'].tolist()]
+        if grupos_fora:
+            sugestao = random.choice(grupos_fora)
+            st.info(f"O Bicho mais provável agora é: **{BICHO_MAP[sugestao]}**")
         
-        st.markdown(f"<div style='background-color:{cor}; padding:15px; border-radius:10px; color:white; text-align:center;'><b>PRÓXIMO GRUPO PROVÁVEL</b><br><span style='font-size: 28px; font-weight: bold;'>{grupo_provavel} - {BICHO_MAP[grupo_provavel]}</span></div>", unsafe_allow_html=True)
-        
-        st.write("")
-        st.markdown("### 💰 Projeção de Ganhos")
-        valor_aposta = st.number_input("Valor da Aposta (R$):", min_value=1.0, value=2.0)
-        
-        st.write(f"💵 **Grupo {grupo_provavel}**: Ganha **R$ {valor_aposta * 18:.2f}**")
-        st.write(f"💎 **Milhar na Cabeça**: Ganha **R$ {valor_aposta * 4000:.2f}**")
-        
-        st.write("")
-        st.markdown("<div style='background-color:#333;padding:10px;border-radius:10px;color:white;text-align:center;'><b>💡 Milhares Sugeridos</b></div>", unsafe_allow_html=True)
-        for _ in range(2):
-            g_int = int(grupo_provavel)
-            d_final = str(random.randint(g_int*4-3, g_int*4)).replace('100', '00').zfill(2)
-            m = str(random.randint(10, 99)) + d_final
-            st.write(f"Milhar: **{m}**")
+        st.markdown("---")
+        st.write("💰 **Simulador de Prêmios**")
+        valor_aposta = st.number_input("Valor (R$):", 1.0, 100.0, 2.0)
+        st.write(f"Acerto de Milhar: R$ {valor_aposta * 4000:.2f}")
+        st.write(f"Acerto de Grupo: R$ {valor_aposta * 18:.2f}")
 
-    # 3. TERMÔMETRO
+    # 3. Termômetro (Gráfico de Frequência)
     st.divider()
-    st.subheader("🔥 Termômetro de Bichos")
-    freq = df_filtrado['Bicho'].value_counts().reset_index()
-    fig = px.bar(freq, x='Bicho', y='count', color='count', color_continuous_scale=[[0, '#eee'], [1, cor]], text_auto=True)
-    st.plotly_chart(fig, use_container_width=True)
-
+    st.subheader("🔥 Termômetro: Bichos mais Frequentes (1º Prêmio)")
+    freq = df_cabeca['Bicho'].value_counts().reset_index()
+    if not freq.empty:
+        fig = px.bar(freq, x='index', y='Bicho', labels={'index': 'Bicho', 'Bicho': 'Qtd Saídas'}, 
+                     color='Bicho', text_auto=True)
+        st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Aguardando sorteios reais de acordo com a tabela de horários.")
+    st.info("Aguardando o primeiro lançamento de resultados para gerar as análises.")
