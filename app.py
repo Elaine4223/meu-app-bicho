@@ -20,15 +20,16 @@ if 'dados' in st.session_state and not st.session_state.dados.empty:
     df = st.session_state.dados.copy()
     df['Bicho'] = df['Grupo'].map(BICHO_MAP)
     
+    # Menu de seleção que o Simulador passará a respeitar
     escolha = st.selectbox("Selecione a Loteria para Análise:", list(CORES.keys()))
     cor = CORES.get(escolha)
     
-    # Filtro e Ordenação
+    # Filtro da Loteria Selecionada
     df_filtrado = df[df['Loteria'] == escolha].sort_values(by="Horário", ascending=False)
     
     st.markdown(f"<h2 style='color: {cor}; text-align: center;'>📍 Resultados de Hoje: {escolha}</h2>", unsafe_allow_html=True)
     
-    # --- 1. RESUMO EM CARDS (TOPO) ---
+    # --- 1. RESUMO EM CARDS ---
     ultimos_hoje = df_filtrado.head(5) 
     cols = st.columns(len(ultimos_hoje))
     for i, (idx, row) in enumerate(ultimos_hoje.iterrows()):
@@ -37,25 +38,18 @@ if 'dados' in st.session_state and not st.session_state.dados.empty:
 
     st.divider()
 
-    # --- 2. HISTÓRICO E PALPITES (MEIO) ---
+    # --- 2. HISTÓRICO E PALPITES ---
     col_tab, col_prob = st.columns([1.5, 1])
-    
     with col_tab:
         st.subheader("🕒 Histórico do Dia")
         st.table(df_filtrado[['Horário', 'Milhar', 'Grupo', 'Bicho']])
 
     with col_prob:
         st.subheader("🎯 Palpites VIP")
-        # Sugestão de grupo que não saiu recentemente
         grupos_recentes = df_filtrado['Grupo'].head(3).tolist()
         grupo_provavel = random.choice([g for g in BICHO_MAP.keys() if g not in grupos_recentes])
         
-        st.markdown(f"""
-        <div style='background-color:{cor}; padding:15px; border-radius:10px; color:white; text-align:center;'>
-            <b>PRÓXIMO GRUPO PROVÁVEL</b><br>
-            <span style='font-size: 28px; font-weight: bold;'>{grupo_provavel} - {BICHO_MAP[grupo_provavel]}</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div style='background-color:{cor}; padding:15px; border-radius:10px; color:white; text-align:center;'><b>PRÓXIMO GRUPO PROVÁVEL</b><br><span style='font-size: 28px; font-weight: bold;'>{grupo_provavel} - {BICHO_MAP[grupo_provavel]}</span></div>", unsafe_allow_html=True)
         
         st.write("")
         st.markdown("<div style='background-color:#333;padding:10px;border-radius:10px;color:white;text-align:center;'><b>💡 Milhares Sugeridos</b></div>", unsafe_allow_html=True)
@@ -66,28 +60,27 @@ if 'dados' in st.session_state and not st.session_state.dados.empty:
             m = str(random.randint(10, 99)) + d_final
             st.write(f"Milhar: **{m}** | Centena: {m[1:]}")
 
-    # --- 3. TERMÔMETRO (BASE) ---
+    # --- 3. TERMÔMETRO ---
     st.divider()
-    st.subheader("🔥 Termômetro de Bichos (Frequência do Dia)")
+    st.subheader("🔥 Termômetro de Bichos")
     freq = df_filtrado['Bicho'].value_counts().reset_index()
     freq.columns = ['Bicho', 'Frequência']
-    fig = px.bar(freq, x='Bicho', y='Frequência', color='Frequência', 
-                 color_continuous_scale=[[0, '#eee'], [1, cor]],
-                 text_auto=True)
+    fig = px.bar(freq, x='Bicho', y='Frequência', color='Frequência', color_continuous_scale=[[0, '#eee'], [1, cor]])
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- SIMULADOR NA LATERAL ---
-    st.sidebar.header("🎰 Simulador")
+    # --- SIMULADOR NA LATERAL (AGORA AMARRADO À LOTERIA ESCOLHIDA) ---
+    st.sidebar.header(f"🎰 Simulador ({escolha})")
     meu_palpite = st.sidebar.text_input("Seu Palpite (Milhar ou Grupo):")
     valor_aposta = st.sidebar.number_input("Valor da Aposta (R$):", min_value=1.0, value=1.0)
     
     if meu_palpite:
+        # AQUI ESTÁ O SEGREDO: Ele busca apenas no 'df_filtrado' (que já é a loteria certa)
         ganhou = df_filtrado[df_filtrado['Milhar'].str.contains(meu_palpite) | (df_filtrado['Grupo'] == meu_palpite)]
         if not ganhou.empty:
             st.sidebar.balloons()
             fator = 4000 if len(meu_palpite) == 4 else 15
-            st.sidebar.success(f"✅ GANHOU! Prêmio: R$ {valor_aposta * fator:.2f}")
+            st.sidebar.success(f"✅ GANHOU NA {escolha}! Prêmio: R$ {valor_aposta * fator:.2f}")
         else:
-            st.sidebar.error("❌ Não saiu ainda.")
+            st.sidebar.error(f"❌ Não saiu na {escolha} ainda.")
 else:
     st.info("Aguardando sorteios ou clique em 'Atualizar Resultados Agora'.")
