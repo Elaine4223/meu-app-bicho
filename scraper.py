@@ -10,11 +10,14 @@ def puxar_resultados():
     for loteria in loterias:
         for hora in horarios:
             milhar = str(random.randint(1000, 9999))
+            # Garantindo que o grupo tenha 2 dígitos (ex: 01, 05, 10)
             grupo = str(random.randint(1, 25)).zfill(2)
+            
             lista_final.append({
                 "Loteria": loteria,
                 "Horário": hora,
                 "Milhar": milhar,
-                "Grupo": grupo
+                "Grupo": grupo,
+                "Data": datetime.now().strftime("%d/%m/%Y")
             })
     return pd.DataFrame(lista_final)
