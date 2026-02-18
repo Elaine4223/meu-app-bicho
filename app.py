@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import random
 
-# CONFIGURAÇÃO DO NOME E ÍCONE OFICIAL
+# CONFIGURAÇÃO DO NOME E ÍCONE OFICIAL (Aparecerá no atalho do celular)
 st.set_page_config(
     page_title="API JB", 
     page_icon="🎯", 
@@ -28,31 +28,25 @@ CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUI
 if 'vagas_resultados' not in st.session_state:
     st.session_state.vagas_resultados = []
 
-# --- 1. CENTRAL DE LANÇAMENTO VERTICAL (MANUAL) ---
-st.title("🏆 Central de Lançamento VIP")
-with st.expander("📥 Painel Manual (1º ao 5º Prêmio)", expanded=True):
+# --- 1. CENTRAL DE LANÇAMENTO (MANUAL E SEGURO) ---
+st.title("🏆 API JB - Central VIP")
+with st.expander("📥 Lançar Resultados (1º ao 5º Prêmio)", expanded=True):
     loto_atual = st.selectbox("Selecione a Loteria:", list(CORES.keys()))
     
     for h_idx in range(1, 9):
         st.markdown(f"### ⏰ Horário {h_idx}")
-        col_h, _ = st.columns([1, 4])
-        hora = col_h.text_input(f"Horário {h_idx}", key=f"h_{h_idx}", placeholder="Ex: 10:00")
+        hora = st.text_input(f"Hora do sorteio", key=f"h_{h_idx}", placeholder="Ex: 10:00")
         
-        c_header = st.columns([0.5, 1, 1, 1])
-        c_header[0].write("**Prêmio**")
-        c_header[1].write("**Milhar**")
-        c_header[2].write("**Centena**")
-        c_header[3].write("**Grupo**")
-        
+        # Estrutura vertical para Milhar, Centena e Grupo
         for p_idx in range(1, 6):
-            cp, cm, cc, cg = st.columns([0.5, 1, 1, 1])
-            cp.write(f"**{p_idx}º**")
-            m_v = cm.text_input(f"M", key=f"m_{h_idx}_{p_idx}", label_visibility="collapsed")
-            c_v = cc.text_input(f"C", key=f"c_{h_idx}_{p_idx}", label_visibility="collapsed")
-            g_v = cg.text_input(f"G", key=f"g_{h_idx}_{p_idx}", label_visibility="collapsed")
+            st.write(f"**{p_idx}º Prêmio**")
+            c_m, c_c, c_g = st.columns(3)
+            c_m.text_input("Milhar", key=f"m_{h_idx}_{p_idx}")
+            c_c.text_input("Centena", key=f"c_{h_idx}_{p_idx}")
+            c_g.text_input("Grupo", key=f"g_{h_idx}_{p_idx}")
         st.markdown("---")
             
-    if st.button("🚀 Atualizar Monitor"):
+    if st.button("🚀 Gerar Análise Vencedora"):
         temp = []
         for h_idx in range(1, 9):
             hf = st.session_state.get(f"h_{h_idx}")
@@ -73,38 +67,37 @@ with st.expander("📥 Painel Manual (1º ao 5º Prêmio)", expanded=True):
 
 st.divider()
 
-# --- 2. INTERFACE DE ANÁLISE ---
+# --- 2. INTERFACE DE ANÁLISE (APARECE APÓS O LANÇAMENTO) ---
 if st.session_state.vagas_resultados:
     df = pd.DataFrame(st.session_state.vagas_resultados)
     loto_ativa = df['Loteria'].iloc[0]
     cor = CORES.get(loto_ativa, "#333")
     
-    st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 API JB: {loto_ativa}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color: {cor}; text-align: center;'>📍 Análise: {loto_ativa}</h2>", unsafe_allow_html=True)
     
-    c1, c2 = st.columns([1.5, 1])
-    with c1:
-        st.subheader("🕒 Histórico Detalhado (1º ao 5º)")
-        st.table(df[['Horário', 'Prêmio', 'Milhar', 'Centena', 'Grupo', 'Bicho']].sort_values(by=["Horário", "Prêmio"]))
+    # Palpites VIP
+    st.subheader("🎯 Palpites da Rodada")
+    g_ja_foi = df[df['Prêmio'] == "1º"]['Grupo'].tolist()
+    g_vivos = [g for g in BICHO_MAP.keys() if g not in g_ja_foi]
+    if g_vivos:
+        sug = random.choice(g_vivos)
+        st.success(f"**PRÓXIMO GRUPO PROVÁVEL: {BICHO_MAP[sug]}**")
+        
+        st.write("#### 🎰 5 Sugestões de Milhar/Centena:")
+        for i in range(5):
+            dezena_base = str(int(sug)*4).zfill(2)
+            m_sug = f"{random.randint(1,9)}{random.randint(0,9)}{dezena_base}"
+            st.code(f"M: {m_sug} | C: {m_sug[-3:]}")
 
-    with c2:
-        st.subheader("🎯 Palpites VIP")
-        g_1_saiu = df[df['Prêmio'] == "1º"]['Grupo'].tolist()
-        g_vivos = [g for g in BICHO_MAP.keys() if g not in g_1_saiu]
-        if g_vivos:
-            sug = random.choice(g_vivos)
-            st.markdown(f"<div style='background-color:{cor}; padding:15px; border-radius:10px; color:white; text-align:center;'><b>PRÓXIMO GRUPO PROVÁVEL</b><br><span style='font-size: 28px;'>{BICHO_MAP[sug]}</span></div>", unsafe_allow_html=True)
-            
-            st.markdown("#### 🎰 5 Milhares Sugeridos")
-            for i in range(5):
-                dezena_base = str(int(sug)*4).zfill(2)
-                m_sug = f"{random.randint(1,9)}{random.randint(0,9)}{dezena_base}"
-                st.write(f"🔥 **{m_sug}** | C: **{m_sug[-3:]}**")
-
-    st.divider()
-    st.subheader("🔥 Termômetro de Frequência")
+    # Termômetro
+    st.subheader("🔥 Termômetro de Frequência (1º ao 5º)")
     freq = df['Bicho'].value_counts().reset_index()
     freq.columns = ['Bicho', 'Qtd']
     fig = px.bar(freq, x='Bicho', y='Qtd', color='Bicho', text_auto=True)
     st.plotly_chart(fig, use_container_width=True)
+    
+    # Histórico
+    st.subheader("🕒 Histórico Detalhado")
+    st.dataframe(df[['Horário', 'Prêmio', 'Milhar', 'Centena', 'Grupo', 'Bicho']], use_container_width=True)
 else:
-    st.info("Preencha os resultados acima para gerar as análises vencedoras!")
+    st.info("Aguardando lançamentos para gerar os palpites...")
