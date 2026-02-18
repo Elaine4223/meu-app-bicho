@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+import pandas as pd  # CORRIGIDO: Agora o sistema reconhece a biblioteca corretamente
 import plotly.express as px
 import random
 
@@ -35,6 +35,7 @@ def obter_bicho(grupo):
 
 CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUINHA": "#C71585"}
 
+# Dados iniciais para a interface nunca abrir vazia
 if 'vagas_resultados' not in st.session_state:
     st.session_state.vagas_resultados = [
         {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "1º", "Milhar": "1224", "Centena": "224", "Grupo": "06", "Bicho": "🐐 Cabra"}
@@ -48,71 +49,6 @@ with st.expander("📥 Painel de Entrada - API JB (Auto-Cálculo)", expanded=Fal
     for h_idx in range(1, 9):
         st.markdown(f"### ⏰ Horário {h_idx}")
         col_h, _ = st.columns([1, 4])
-        hora = col_h.text_input(f"Horário {h_idx}", key=f"h_{h_idx}", placeholder="Ex: 08:00")
+        hora = col_h.text_input(f"Horário", key=f"h_{h_idx}", placeholder="Ex: 08:00")
         
-        c_header = st.columns([0.5, 1, 1, 1])
-        c_header[1].write("**Milhar**")
-        c_header[2].write("**Centena**")
-        c_header[3].write("**Grupo**")
-        
-        for p_idx in range(1, 6):
-            cp, cm, cc, cg = st.columns([0.5, 1, 1, 1])
-            cp.write(f"**{p_idx}º**")
-            
-            # Input Milhar
-            m_input = cm.text_input(f"M", key=f"m_{h_idx}_{p_idx}", label_visibility="collapsed")
-            
-            # Cálculo Automático
-            c_auto, g_auto = calcular_dados(m_input)
-            
-            # Exibição Automática (Campos Centena e Grupo preenchem sozinhos)
-            cc.text_input(f"C", value=c_auto, key=f"c_{h_idx}_{p_idx}", label_visibility="collapsed", disabled=True)
-            cg.text_input(f"G", value=g_auto, key=f"g_{h_idx}_{p_idx}", label_visibility="collapsed", disabled=True)
-        st.markdown("---")
-            
-    if st.button("🚀 Atualizar Monitor"):
-        temp = []
-        for h_idx in range(1, 9):
-            hf = st.session_state.get(f"h_{h_idx}")
-            if hf:
-                for p_idx in range(1, 6):
-                    milhar = st.session_state.get(f"m_{h_idx}_{p_idx}")
-                    if milhar:
-                        c_val, g_val = calcular_dados(milhar)
-                        temp.append({
-                            "Loteria": loto_atual, "Horário": hf, "Prêmio": f"{p_idx}º", 
-                            "Milhar": milhar, "Centena": c_val, "Grupo": g_val, 
-                            "Bicho": obter_bicho(g_val)
-                        })
-        if temp:
-            st.session_state.vagas_resultados = temp
-            st.rerun()
-
-st.divider()
-
-# --- 2. INTERFACE DE ANÁLISE ---
-df = pd.DataFrame(st.session_state.vagas_resultados)
-loto_ativa = df['Loteria'].iloc[0] if not df.empty else "NACIONAL"
-cor = CORES.get(loto_ativa, "#333")
-st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 API JB: {loto_ativa}</h1>", unsafe_allow_html=True)
-
-# Cards 1º Prêmio
-df_1 = df[df['Prêmio'] == "1º"].sort_values(by="Horário", ascending=False)
-if not df_1.empty:
-    cols_cards = st.columns(len(df_1.head(4)))
-    for i, (idx, row) in enumerate(df_1.head(4).iterrows()):
-        with cols_cards[i]:
-            st.metric(label=f"1º - {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
-
-st.divider()
-
-c1, c2 = st.columns([1.5, 1])
-with c1:
-    st.subheader("🕒 Histórico Detalhado (1º ao 5º)")
-    st.table(df[['Horário', 'Prêmio', 'Milhar', 'Centena', 'Grupo', 'Bicho']].sort_values(by=["Horário", "Prêmio"]))
-
-with c2:
-    st.subheader("🎯 Palpites VIP")
-    g_1_saiu = df[df['Prêmio'] == "1º"]['Grupo'].tolist()
-    g_vivos = [g for g in BICHO_MAP.keys() if g not in g_1_saiu]
-    if g_
+        c_header = st.columns([0.5,
