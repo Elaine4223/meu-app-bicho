@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import random
 
-st.set_page_config(page_title="Monitor Vip Pro - Elaine", layout="wide")
+st.set_page_config(page_title="Monitor Ouro da Sorte - Elaine VIP", layout="wide")
 
 # --- DICIONÁRIO OFICIAL ---
 BICHO_MAP = {
@@ -15,50 +15,62 @@ BICHO_MAP = {
     "21": "🐂 Touro", "22": "🐅 Tigre", "23": "🐻 Urso", "24": "🦌 Veado", "25": "🐄 Vaca"
 }
 
-def obter_bicho(grupo):
-    return BICHO_MAP.get(str(grupo).zfill(2), "Sorte")
+# Funções Inteligentes de Extração
+def extrair_centena(m):
+    return str(m)[-3:] if len(str(m)) >= 3 else ""
+
+def identificar_grupo(m):
+    try:
+        dezena = int(str(m)[-2:])
+        if dezena == 0: return "25"
+        grupo = (dezena - 1) // 4 + 1
+        return str(min(grupo, 25)).zfill(2)
+    except: return "01"
 
 CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUINHA": "#C71585"}
 
 if 'vagas_resultados' not in st.session_state:
     st.session_state.vagas_resultados = [
-        {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "1º", "Milhar": "1224", "Centena": "224", "Grupo": "06", "Bicho": "🐐 Cabra"}
+        {"Horário": "2:00", "Prêmio": "1º", "Milhar": "0579", "Centena": "579", "Grupo": "20", "Bicho": "🦃 Peru", "Loteria": "NACIONAL"}
     ]
 
-# --- 1. CENTRAL DE LANÇAMENTO VERTICAL ---
-st.title("🏆 Central de Lançamento VIP")
-with st.expander("📥 Painel Manual (1º ao 5º Prêmio)", expanded=False):
-    with st.form("form_final_v1"):
+# --- 1. CENTRAL DE LANÇAMENTO (FOCO TOTAL NA MILHAR) ---
+st.title("🏆 Central de Lançamento Inteligente")
+with st.expander("📥 Digite apenas os Horários e Milhares", expanded=False):
+    with st.form("form_auto_inteligente"):
         loto_atual = st.selectbox("Selecione a Loteria:", list(CORES.keys()))
+        
         for h_idx in range(1, 9):
-            st.markdown(f"### ⏰ Horário {h_idx}")
-            col_h, _ = st.columns([1, 4])
-            hora = col_h.text_input(f"Horário", key=f"h_{h_idx}", placeholder="Ex: 08:00")
-            c_header = st.columns([0.5, 1, 1, 1])
-            c_header[0].write("**Prêmio**")
-            c_header[1].write("**Milhar**")
-            c_header[2].write("**Centena**")
-            c_header[3].write("**Grupo**")
-            for p_idx in range(1, 6):
-                cp, cm, cc, cg = st.columns([0.5, 1, 1, 1])
-                cp.write(f"**{p_idx}º**")
-                m_v = cm.text_input(f"M{p_idx}_{h_idx}", key=f"m{p_idx}_{h_idx}", label_visibility="collapsed")
-                c_v = cc.text_input(f"C{p_idx}_{h_idx}", key=f"c{p_idx}_{h_idx}", label_visibility="collapsed")
-                g_v = cg.text_input(f"G{p_idx}_{h_idx}", key=f"g{p_idx}_{h_idx}", label_visibility="collapsed")
+            st.markdown(f"#### ⏰ Horário {h_idx}")
+            col_hora, col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns([1, 1, 1, 1, 1, 1])
+            
+            h_v = col_hora.text_input("Hora", key=f"h_{h_idx}", placeholder="00:00")
+            m1 = col_m1.text_input("1º Milhar", key=f"m1_{h_idx}")
+            m2 = col_m2.text_input("2º Milhar", key=f"m2_{h_idx}")
+            m3 = col_m3.text_input("3º Milhar", key=f"m3_{h_idx}")
+            m4 = col_m4.text_input("4º Milhar", key=f"m4_{h_idx}")
+            m5 = col_m5.text_input("5º Milhar", key=f"m5_{h_idx}")
             st.markdown("---")
-        if st.form_submit_button("🚀 Atualizar Monitor"):
-            temp = [] 
+            
+        if st.form_submit_button("🚀 Publicar e Atualizar"):
+            novos = []
             for h_idx in range(1, 9):
-                hf = st.session_state.get(f"h_{h_idx}")
-                if hf:
-                    for p_idx in range(1, 6):
-                        m = st.session_state.get(f"m{p_idx}_{h_idx}")
-                        g = st.session_state.get(f"g{p_idx}_{h_idx}")
-                        c = st.session_state.get(f"c{p_idx}_{h_idx}")
-                        if m and g:
-                            temp.append({"Loteria": loto_atual, "Horário": hf, "Prêmio": f"{p_idx}º", "Milhar": m, "Centena": c, "Grupo": g, "Bicho": obter_bicho(g)})
-            if temp:
-                st.session_state.vagas_resultados = temp
+                hora = st.session_state.get(f"h_{h_idx}")
+                if hora:
+                    for p in range(1, 6):
+                        milhar = st.session_state.get(f"m{p}_{h_idx}")
+                        if milhar:
+                            centena = extrair_centena(milhar)
+                            grupo = identificar_grupo(milhar)
+                            novos.append({
+                                "Horário": hora, "Prêmio": f"{p}º",
+                                "Milhar": milhar, "Centena": centena,
+                                "Grupo": grupo, "Bicho": BICHO_MAP[grupo],
+                                "Loteria": loto_atual
+                            })
+            if novos:
+                st.session_state.vagas_resultados = novos
+                st.success("✅ Centenas e Grupos calculados automaticamente!")
                 st.rerun()
 
 st.divider()
@@ -69,7 +81,7 @@ loto_ativa = df['Loteria'].iloc[0] if not df.empty else "NACIONAL"
 cor = CORES.get(loto_ativa, "#333")
 st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 Resultados de Hoje: {loto_ativa}</h1>", unsafe_allow_html=True)
 
-# Cards 1º Prêmio
+# Cards (Somente 1º Prêmio para não poluir)
 df_1 = df[df['Prêmio'] == "1º"].sort_values(by="Horário", ascending=False)
 if not df_1.empty:
     cols = st.columns(len(df_1.head(4)))
@@ -94,10 +106,10 @@ with c2:
         
         st.markdown("#### 🎰 Milhares Sugeridos")
         g_int = int(sug)
-        dezenas = [str(g_int*4).replace('100','00').zfill(2), str(g_int*4-1).zfill(2), str(g_int*4-2).zfill(2), str(g_int*4-3).zfill(2)]
+        dezenas = [str(g_int*4).replace('100','00').zfill(2), str(g_int*4-1).zfill(2)]
         for i in range(5):
-            m_sug = f"{random.randint(0,9)}{random.choice(dezenas).zfill(3)}"
-            st.write(f"🔥 **{i+1}º Milhar:** {random.randint(1,9)}{m_sug[-3:]} | **C:** {m_sug[-3:]}")
+            m_s = f"{random.randint(1,9)}{random.randint(1,9)}{random.choice(dezenas)}"
+            st.write(f"🔥 **{i+1}º Milhar:** {m_s} | **C:** {m_s[-3:]}")
 
 # Termômetro
 st.divider()
