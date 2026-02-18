@@ -3,24 +3,18 @@ import pandas as pd
 import plotly.express as px
 import random
 
-# 1. IDENTIDADE DO APP
-st.set_page_config(
-    page_title="API JB", 
-    page_icon="🎯", 
-    layout="wide"
-)
+# 1. CONFIGURAÇÃO BÁSICA
+st.set_page_config(page_title="API JB", page_icon="🎯", layout="wide")
 
-# 2. BLOQUEIO VISUAL (Esconde o gatinho do GitHub e menus)
-hide_style = """
+# 2. TRAVA VISUAL (Esconde o gatinho e menus para proteger seu código)
+st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .viewerBadge_container__1QS13 {display: none !important;}
     .stAppDeployButton {display: none !important;}
     </style>
-"""
-st.markdown(hide_style, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- DICIONÁRIO OFICIAL ---
 BICHO_MAP = {
