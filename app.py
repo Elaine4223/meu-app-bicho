@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import random
 
-st.set_page_config(page_title="Monitor Ouro da Sorte - Elaine VIP", layout="wide")
+st.set_page_config(page_title="Monitor Vip Pro - Elaine", layout="wide")
 
 # --- DICIONÁRIO OFICIAL ---
 BICHO_MAP = {
@@ -25,48 +25,59 @@ def identificar_grupo(valor):
 
 CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUINHA": "#C71585"}
 
-# --- INICIALIZAÇÃO COM DADOS REAIS PARA INTERFACE APARECER ---
+# Dados iniciais para garantir que a interface não suma
 if 'vagas_resultados' not in st.session_state:
     st.session_state.vagas_resultados = [
         {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "1º", "Milhar": "1224", "Grupo": "06", "Bicho": "🐐 Cabra"},
         {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "2º", "Milhar": "5594", "Grupo": "24", "Bicho": "🦌 Veado"}
     ]
 
-# --- 1. CENTRAL DE LANÇAMENTO (8 HORÁRIOS X 5 PRÊMIOS) ---
-st.title("🏆 Central de Lançamento Profissional")
-with st.expander("📥 Painel de Entrada Completo (1º ao 5º Prêmio)", expanded=False):
-    with st.form("form_8x5_final"):
+# --- 1. CENTRAL DE LANÇAMENTO (VERTICAL POR PRÊMIO) ---
+st.title("🏆 Central de Lançamento Profissional PRO")
+with st.expander("📥 Painel de Lançamento Vertical (1º ao 5º Prêmio)", expanded=False):
+    with st.form("form_vertical_8x5"):
         loto_atual = st.selectbox("Selecione a Loteria:", list(CORES.keys()))
         
+        # Loop para criar 8 blocos de horários
         for h_idx in range(1, 9):
-            st.markdown(f"#### ⏰ Horário {h_idx}")
-            col_hora, col_p1, col_p2, col_p3, col_p4, col_p5 = st.columns([1.2, 1, 1, 1, 1, 1])
+            st.markdown(f"### ⏰ Horário {h_idx}")
+            col_h, _ = st.columns([1, 4])
+            hora = col_h.text_input(f"Horário {h_idx}", key=f"h_{h_idx}", placeholder="08:00")
             
-            h_val = col_hora.text_input("Hora", key=f"h_{h_idx}", placeholder="Ex: 10:00")
-            m1 = col_p1.text_input("1º Milhar", key=f"m1_{h_idx}")
-            m2 = col_p2.text_input("2º Milhar", key=f"m2_{h_idx}")
-            m3 = col_p3.text_input("3º Milhar", key=f"m3_{h_idx}")
-            m4 = col_p4.text_input("4º Milhar", key=f"m4_{h_idx}")
-            m5 = col_p5.text_input("5º Milhar", key=f"m5_{h_idx}")
+            # Cabeçalho da tabela interna
+            c_header = st.columns([0.5, 1, 1, 1])
+            c_header[0].write("**Prêmio**")
+            c_header[1].write("**Milhar**")
+            c_header[2].write("**Centena**")
+            c_header[3].write("**Grupo**")
+            
+            # 5 linhas de prêmios para cada horário
+            for p_idx in range(1, 6):
+                cp, cm, cc, cg = st.columns([0.5, 1, 1, 1])
+                cp.write(f"**{p_idx}º**")
+                m_val = cm.text_input(f"M{p_idx}_{h_idx}", key=f"m{p_idx}_{h_idx}", label_visibility="collapsed")
+                c_val = cc.text_input(f"C{p_idx}_{h_idx}", key=f"c{p_idx}_{h_idx}", label_visibility="collapsed")
+                g_val = cg.text_input(f"G{p_idx}_{h_idx}", key=f"g{p_idx}_{h_idx}", label_visibility="collapsed")
             st.markdown("---")
             
-        if st.form_submit_button("🚀 Gravar e Sincronizar Tudo"):
+        if st.form_submit_button("🚀 Gravar e Sincronizar Monitor"):
             temp_dados = [] 
             for h_idx in range(1, 9):
-                hora = st.session_state.get(f"h_{h_idx}")
-                if hora:
+                h_final = st.session_state.get(f"h_{h_idx}")
+                if h_final:
                     for p_idx in range(1, 6):
                         milhar = st.session_state.get(f"m{p_idx}_{h_idx}")
                         if milhar:
-                            g = identificar_grupo(milhar)
+                            g_manual = st.session_state.get(f"g{p_idx}_{h_idx}")
+                            g_final = g_manual if g_manual else identificar_grupo(milhar)
                             temp_dados.append({
-                                "Loteria": loto_atual, "Horário": hora, 
+                                "Loteria": loto_atual, "Horário": h_final, 
                                 "Prêmio": f"{p_idx}º", "Milhar": milhar, 
-                                "Grupo": g, "Bicho": BICHO_MAP.get(g, "Sorte")
+                                "Grupo": g_final, "Bicho": BICHO_MAP.get(g_final, "Sorte")
                             })
             if temp_dados:
                 st.session_state.vagas_resultados = temp_dados
-                st.success("Painel de Análise Atualizado com 40 slots!")
+                st.success("Painel atualizado com sucesso!")
                 st.rerun()
 
 st.divider()
@@ -78,35 +89,33 @@ cor = CORES.get(loto_ativa, "#333")
 
 st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 Monitor: {loto_ativa}</h1>", unsafe_allow_html=True)
 
-# Cards apenas do 1º Prêmio para não poluir o topo
+# Cards (Destaque do 1º Prêmio)
 df_1 = df[df['Prêmio'] == "1º"].sort_values(by="Horário", ascending=False)
 if not df_1.empty:
-    cols_cards = st.columns(len(df_1.head(4)))
+    cols = st.columns(len(df_1.head(4)))
     for i, (idx, row) in enumerate(df_1.head(4).iterrows()):
-        with cols_cards[i]:
-            st.metric(label=f"1º Prêmio - {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
+        with cols[i]:
+            st.metric(label=f"1º - {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
 
 st.divider()
 
-c_hist, c_palp = st.columns([1.5, 1])
-with c_hist:
+c1, c2 = st.columns([1.5, 1])
+with c1:
     st.subheader("🕒 Histórico do Dia (1º ao 5º)")
     st.dataframe(df.sort_values(by=["Horário", "Prêmio"]), use_container_width=True)
 
-with c_palp:
+with c2:
     st.subheader("🎯 Palpite VIP")
-    # Palpite exclui grupos que saíram no 1º prêmio
-    g_ja_foi = df[df['Prêmio'] == "1º"]['Grupo'].tolist()
-    g_vivos = [g for g in BICHO_MAP.keys() if g not in g_ja_foi]
+    g_1_saiu = df[df['Prêmio'] == "1º"]['Grupo'].tolist()
+    g_vivos = [g for g in BICHO_MAP.keys() if g not in g_1_saiu]
     if g_vivos:
         sug = random.choice(g_vivos)
         st.markdown(f"<div style='background-color:{cor}; padding:25px; border-radius:15px; color:white; text-align:center;'><b>FORTE PARA O PRÓXIMO</b><br><span style='font-size: 32px; font-weight: bold;'>{BICHO_MAP[sug]}</span></div>", unsafe_allow_html=True)
 
-# Termômetro usa TODOS os prêmios (1º ao 5º) para precisão máxima
+# Termômetro Geral
 st.divider()
-st.subheader("🔥 Termômetro Geral (Frequência do 1º ao 5º)")
-if not df.empty:
-    freq = df['Bicho'].value_counts().reset_index()
-    freq.columns = ['Bicho', 'Qtd']
-    fig = px.bar(freq, x='Bicho', y='Qtd', color='Bicho', text_auto=True, color_continuous_scale=[[0, '#eee'], [1, cor]])
-    st.plotly_chart(fig, use_container_width=True)
+st.subheader("🔥 Termômetro Geral (1º ao 5º)")
+freq = df['Bicho'].value_counts().reset_index()
+freq.columns = ['Bicho', 'Qtd']
+fig = px.bar(freq, x='Bicho', y='Qtd', color='Bicho', text_auto=True, color_continuous_scale=[[0, '#eee'], [1, cor]])
+st.plotly_chart(fig, use_container_width=True)
