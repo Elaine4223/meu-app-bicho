@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import random
 
-# CONFIGURAÇÃO DE IDENTIDADE
+# 1. CONFIGURAÇÃO BÁSICA (Nome que aparecerá no ícone do iPhone)
 st.set_page_config(page_title="API JB", page_icon="🎯", layout="wide")
 
 # --- DICIONÁRIO OFICIAL ---
@@ -68,11 +68,11 @@ if st.session_state.vagas_resultados:
     loto_ativa = df['Loteria'].iloc[0]
     cor = CORES.get(loto_ativa, "#333")
     
-    st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 Resultados: {loto_ativa}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 API JB: {loto_ativa}</h1>", unsafe_allow_html=True)
     
     c1, c2 = st.columns([1.5, 1])
     with c1:
-        st.subheader("🕒 Histórico Detalhado")
+        st.subheader("🕒 Histórico Detalhado (1º ao 5º)")
         st.table(df[['Horário', 'Prêmio', 'Milhar', 'Centena', 'Grupo', 'Bicho']].sort_values(by=["Horário", "Prêmio"]))
 
     with c2:
@@ -93,4 +93,4 @@ if st.session_state.vagas_resultados:
     fig = px.bar(freq, x='Bicho', y='Qtd', color='Bicho', text_auto=True)
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Aguardando lançamentos para gerar os palpites...")
+    st.info("Preencha os resultados acima para gerar as análises!")
