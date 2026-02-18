@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import random
 
-st.set_page_config(page_title="Monitor Ouro da Sorte - Elaine", layout="wide")
+st.set_page_config(page_title="Monitor Ouro da Sorte - Elaine VIP", layout="wide")
 
 # --- DICIONÁRIO OFICIAL ---
 BICHO_MAP = {
@@ -25,79 +25,87 @@ def identificar_grupo(valor):
 
 CORES = {"NACIONAL": "#2E8B57", "PT-RIO": "#4169E1", "LOOK": "#FF8C00", "MALUQUINHA": "#C71585"}
 
+# --- INICIALIZAÇÃO COM DADOS REAIS PARA INTERFACE APARECER ---
 if 'vagas_resultados' not in st.session_state:
-    st.session_state.vagas_resultados = []
+    st.session_state.vagas_resultados = [
+        {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "1º", "Milhar": "1224", "Grupo": "06", "Bicho": "🐐 Cabra"},
+        {"Loteria": "NACIONAL", "Horário": "08:00", "Prêmio": "2º", "Milhar": "5594", "Grupo": "24", "Bicho": "🦌 Veado"}
+    ]
 
-# --- 1. CENTRAL DE LANÇAMENTO (ESTRUTURA EM COLUNAS) ---
+# --- 1. CENTRAL DE LANÇAMENTO (8 HORÁRIOS X 5 PRÊMIOS) ---
 st.title("🏆 Central de Lançamento Profissional")
-with st.expander("📥 Painel de Entrada - 8 Horários Disponíveis", expanded=True):
-    with st.form("form_8_horarios_colunas"):
+with st.expander("📥 Painel de Entrada Completo (1º ao 5º Prêmio)", expanded=False):
+    with st.form("form_8x5_final"):
         loto_atual = st.selectbox("Selecione a Loteria:", list(CORES.keys()))
         
-        # Cabeçalho das Colunas
-        header_cols = st.columns([1, 1, 1, 1])
-        header_cols[0].markdown("**Horário**")
-        header_cols[1].markdown("**Milhar**")
-        header_cols[2].markdown("**Centena**")
-        header_cols[3].markdown("**Grupo**")
-        
-        for i in range(1, 9):
-            c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-            horario = c1.text_input(f"H{i}", key=f"h{i}", label_visibility="collapsed", placeholder="Ex: 10:00")
-            milhar = c2.text_input(f"M{i}", key=f"m{i}", label_visibility="collapsed", placeholder="Milhar")
-            centena = c3.text_input(f"C{i}", key=f"c{i}", label_visibility="collapsed", placeholder="Centena")
-            grupo = c4.text_input(f"G{i}", key=f"g{i}", label_visibility="collapsed", placeholder="Grupo")
+        for h_idx in range(1, 9):
+            st.markdown(f"#### ⏰ Horário {h_idx}")
+            col_hora, col_p1, col_p2, col_p3, col_p4, col_p5 = st.columns([1.2, 1, 1, 1, 1, 1])
             
-        if st.form_submit_button("🚀 Gravar e Sincronizar Monitor"):
+            h_val = col_hora.text_input("Hora", key=f"h_{h_idx}", placeholder="Ex: 10:00")
+            m1 = col_p1.text_input("1º Milhar", key=f"m1_{h_idx}")
+            m2 = col_p2.text_input("2º Milhar", key=f"m2_{h_idx}")
+            m3 = col_p3.text_input("3º Milhar", key=f"m3_{h_idx}")
+            m4 = col_p4.text_input("4º Milhar", key=f"m4_{h_idx}")
+            m5 = col_p5.text_input("5º Milhar", key=f"m5_{h_idx}")
+            st.markdown("---")
+            
+        if st.form_submit_button("🚀 Gravar e Sincronizar Tudo"):
             temp_dados = [] 
-            for i in range(1, 9):
-                h = st.session_state[f"h{i}"]
-                m = st.session_state[f"m{i}"]
-                if h and m:
-                    # Se centena/grupo estiverem vazios, o sistema calcula do milhar
-                    g_final = st.session_state[f"g{i}"] if st.session_state[f"g{i}"] else identificar_grupo(m)
-                    temp_dados.append({
-                        "Loteria": loto_atual, "Horário": h, 
-                        "Milhar": m, "Grupo": g_final, "Bicho": BICHO_MAP.get(g_final, "Sorte")
-                    })
+            for h_idx in range(1, 9):
+                hora = st.session_state.get(f"h_{h_idx}")
+                if hora:
+                    for p_idx in range(1, 6):
+                        milhar = st.session_state.get(f"m{p_idx}_{h_idx}")
+                        if milhar:
+                            g = identificar_grupo(milhar)
+                            temp_dados.append({
+                                "Loteria": loto_atual, "Horário": hora, 
+                                "Prêmio": f"{p_idx}º", "Milhar": milhar, 
+                                "Grupo": g, "Bicho": BICHO_MAP.get(g, "Sorte")
+                            })
             if temp_dados:
                 st.session_state.vagas_resultados = temp_dados
-                st.success("Dados processados com sucesso!")
+                st.success("Painel de Análise Atualizado com 40 slots!")
                 st.rerun()
 
 st.divider()
 
 # --- 2. INTERFACE DE ANÁLISE ---
-if st.session_state.vagas_resultados:
-    df = pd.DataFrame(st.session_state.vagas_resultados)
-    loto_ativa = df['Loteria'].iloc[0]
-    cor = CORES.get(loto_ativa, "#333")
-    
-    st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 Monitor: {loto_ativa}</h1>", unsafe_allow_html=True)
+df = pd.DataFrame(st.session_state.vagas_resultados)
+loto_ativa = df['Loteria'].iloc[0] if not df.empty else "NACIONAL"
+cor = CORES.get(loto_ativa, "#333")
 
-    # Resumo Visual
-    df_c = df.sort_values(by="Horário", ascending=False)
-    cols = st.columns(len(df_c.head(4)))
-    for i, (idx, row) in enumerate(df_c.head(4).iterrows()):
-        with cols[i]:
-            st.metric(label=f"⏰ {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
+st.markdown(f"<h1 style='color: {cor}; text-align: center;'>📍 Monitor: {loto_ativa}</h1>", unsafe_allow_html=True)
 
-    st.divider()
+# Cards apenas do 1º Prêmio para não poluir o topo
+df_1 = df[df['Prêmio'] == "1º"].sort_values(by="Horário", ascending=False)
+if not df_1.empty:
+    cols_cards = st.columns(len(df_1.head(4)))
+    for i, (idx, row) in enumerate(df_1.head(4).iterrows()):
+        with cols_cards[i]:
+            st.metric(label=f"1º Prêmio - {row['Horário']}", value=row['Milhar'], delta=row['Bicho'])
 
-    c1, c2 = st.columns([1.5, 1])
-    with c1:
-        st.subheader("🕒 Histórico Detalhado")
-        st.dataframe(df_c[['Horário', 'Milhar', 'Grupo', 'Bicho']], use_container_width=True)
+st.divider()
 
-    with c2:
-        st.subheader("🎯 Sugestão da IA")
-        g_vivos = [g for g in BICHO_MAP.keys() if g not in df['Grupo'].tolist()]
-        if g_vivos:
-            sug = random.choice(g_vivos)
-            st.markdown(f"<div style='background-color:{cor}; padding:25px; border-radius:15px; color:white; text-align:center;'><b>TENDÊNCIA PARA AGORA</b><br><span style='font-size: 32px; font-weight: bold;'>{BICHO_MAP[sug]}</span></div>", unsafe_allow_html=True)
+c_hist, c_palp = st.columns([1.5, 1])
+with c_hist:
+    st.subheader("🕒 Histórico do Dia (1º ao 5º)")
+    st.dataframe(df.sort_values(by=["Horário", "Prêmio"]), use_container_width=True)
 
-    st.divider()
-    st.subheader("🔥 Termômetro de Frequência (Análise dos 8 Horários)")
+with c_palp:
+    st.subheader("🎯 Palpite VIP")
+    # Palpite exclui grupos que saíram no 1º prêmio
+    g_ja_foi = df[df['Prêmio'] == "1º"]['Grupo'].tolist()
+    g_vivos = [g for g in BICHO_MAP.keys() if g not in g_ja_foi]
+    if g_vivos:
+        sug = random.choice(g_vivos)
+        st.markdown(f"<div style='background-color:{cor}; padding:25px; border-radius:15px; color:white; text-align:center;'><b>FORTE PARA O PRÓXIMO</b><br><span style='font-size: 32px; font-weight: bold;'>{BICHO_MAP[sug]}</span></div>", unsafe_allow_html=True)
+
+# Termômetro usa TODOS os prêmios (1º ao 5º) para precisão máxima
+st.divider()
+st.subheader("🔥 Termômetro Geral (Frequência do 1º ao 5º)")
+if not df.empty:
     freq = df['Bicho'].value_counts().reset_index()
     freq.columns = ['Bicho', 'Qtd']
     fig = px.bar(freq, x='Bicho', y='Qtd', color='Bicho', text_auto=True, color_continuous_scale=[[0, '#eee'], [1, cor]])
