@@ -43,17 +43,18 @@ with st.expander("📥 Lançar Resultados do Dia (Até 8 Horários)", expanded=T
             m = col_m.text_input(f"Milhar 1º Prêmio (Slot {i})", key=f"m{i}", placeholder="Ex: 1234")
             
         if st.form_submit_button("🚀 Atualizar Banco de Dados do Dia"):
-            st.session_state.vagas_resultados = [] # Limpa para atualizar com os novos inputs
+            temp_dados = [] 
             for i in range(1, 9):
                 horario = st.session_state[f"h{i}"]
                 milhar = st.session_state[f"m{i}"]
                 if horario and milhar:
                     g = identificar_grupo(milhar)
-                    st.session_state.vagas_resultados.append({
+                    temp_dados.append({
                         "Loteria": loto_atual, "Horário": horario, 
                         "Prêmio": "1º", "Milhar": milhar, 
                         "Grupo": g, "Bicho": BICHO_MAP[g]
                     })
+            st.session_state.vagas_resultados = temp_dados
             st.success("Painel de Análise Atualizado!")
 
 st.divider()
