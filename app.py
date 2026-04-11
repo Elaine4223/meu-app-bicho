@@ -6,12 +6,11 @@ import random
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Monitor Vip Pro - Elaine", layout="wide", page_icon="🏆")
 
-# CSS para deixar as caixinhas menores e mais elegantes
+# CSS para layout ultra clean
 st.markdown("""
     <style>
-    .stAlert { padding: 5px; margin-bottom: 2px; }
-    .css-1r6slb0 { padding: 5px; }
-    div[data-testid="stMetricValue"] { font-size: 1.2rem; }
+    .reportview-container .main .block-container { padding-top: 1rem; }
+    .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -50,44 +49,62 @@ if 'vagas_resultados' not in st.session_state:
 
 st.title("🏆 Monitor Vip Pro")
 
-# --- ÁREA DE ENTRADA ---
+# --- BARRA LATERAL (CONFIGURAÇÃO) ---
 with st.sidebar:
-    st.header("⚙️ Controle")
-    loto = st.selectbox("Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
-    hora_auto = st.text_input("Horário do Sorteio:", "02:00")
-    texto_entrada = st.text_area("Cole os resultados aqui:", height=150)
-    if st.button("🚀 Processar e Salvar", use_container_width=True):
-        if texto_entrada:
-            novos = processar_texto_v2(texto_entrada)
+    st.header("⚙️ Entradas")
+    loto_selecionada = st.selectbox("Escolha a Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
+    hora_input = st.text_input("Horário (Ex: 11:00):", "02:00")
+    texto_input = st.text_area("Cole os resultados aqui:", height=150)
+    
+    if st.button("🚀 Salvar no Painel", use_container_width=True):
+        if texto_input:
+            novos = processar_texto_v2(texto_input)
             for n in novos:
-                n["Loteria"], n["Horário"] = loto, hora_auto
+                n["Loteria"], n["Horário"] = loto_selecionada, hora_input
+                # Trava contra duplicidade
                 if not any(d['Horário'] == n['Horário'] and d['Prêmio'] == n['Prêmio'] and d['Loteria'] == n['Loteria'] for d in st.session_state.vagas_resultados):
                     st.session_state.vagas_resultados.append(n)
             st.rerun()
-    
-    if st.button("🗑️ Resetar Dia", use_container_width=True):
+
+    if st.button("🗑️ Limpar Tudo", use_container_width=True):
         st.session_state.vagas_resultados = []
         st.rerun()
 
-# --- PALPITES E RADAR (Destaque no topo) ---
+# --- ÁREA PRINCIPAL (PALPITES) ---
 if st.session_state.vagas_resultados:
-    df_temp = pd.DataFrame(st.session_state.vagas_resultados)
-    saíram_cabeça = df_temp[df_temp['Prêmio'] == 1]['Grupo'].unique()
-    atrasados = [g for g in BICHO_MAP.keys() if g not in saíram_cabeça]
+    df_base = pd.DataFrame(st.session_state.vagas_resultados)
+    df_loto = df_base[df_base['Loteria'] == loto_selecionada]
+    
+    # Palpite baseado nos atrasos da loteria selecionada
+    saíram = df_loto[df_loto['Prêmio'] == 1]['Grupo'].unique()
+    atrasados = [g for g in BICHO_MAP.keys() if g not in saíram]
     
     c1, c2 = st.columns(2)
     if atrasados:
-        c1.metric("Bicho VIP do Momento", BICHO_MAP[atrasados[0]])
-        c2.metric("Milhar Sugerida", gerar_milhar_do_grupo(atrasados[0]))
+        c1.metric("🎯 Bicho Sugerido", BICHO_MAP[atrasados[0]])
+        c2.metric("🎲 Milhar VIP", gerar_milhar_do_grupo(atrasados[0]))
 
-st.divider()
+    st.divider()
 
-# --- GRADE HORIZONTAL CLEAN ---
-if st.session_state.vagas_resultados:
-    df = pd.DataFrame(st.session_state.vagas_resultados)
-    df_loto = df[df['Loteria'] == loto]
-    
+    # --- GRADE HORIZONTAL CLEAN ---
     if not df_loto.empty:
-        horarios = sorted(df_loto['Horário'].unique())
-        # Cria colunas de acordo com o número de horários (máx 8)
-        cols_grade = st.columns(len(hor
+        horarios_disponiveis = sorted(df_loto['Horário'].unique())
+        # Corrigido: Agora o parêntese fecha certinho!
+        colunas_horario = st.columns(len(horarios_disponiveis))
+        
+        for i, hr in enumerate(horarios_disponiveis):
+            with colunas_horario[i]:
+                st.markdown(f"""<div style="background-color:#262730; color:white; text-align:center; border-radius:5px; padding:2px; font-weight:bold; margin-bottom:10px;">{hr}</div>""", unsafe_allow_html=True)
+                
+                dados_do_horario = df_loto[df_loto['Horário'] == hr].sort_values('Prêmio')
+                for p in range(1, 6):
+                    row = dados_do_horario[dados_do_horario['Prêmio'] == p]
+                    if not row.empty:
+                        # Estilo Milhar + Bicho Lado a Lado
+                        st.write(f"**{p}º** `{row.iloc[0]['Milhar']}` | {row.iloc[0]['Bicho']}")
+                    else:
+                        st.write(f"**{p}º** `----` | ...")
+    else:
+        st.info(f"Nenhum dado salvo para {loto_selecionada} hoje.")
+else:
+    st.warning("👈 Comece colando um resultado na barra lateral!")
