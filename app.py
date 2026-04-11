@@ -3,14 +3,16 @@ import pandas as pd
 import re
 import random
 
-# --- CONFIGURAÇÃO ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Monitor Vip Pro - Elaine", layout="wide", page_icon="🏆")
 
-# CSS para layout ultra clean
+# CSS para um visual mais profissional e cores destacadas
 st.markdown("""
     <style>
-    .reportview-container .main .block-container { padding-top: 1rem; }
-    .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
+    .main { background-color: #f8f9fa; }
+    .stMetric { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: white; }
+    .header-col { background-color: #1E1E1E; color: #FFD700; text-align: center; font-weight: bold; border-radius: 5px; padding: 5px; margin-bottom: 10px; }
+    .resultado-box { border-bottom: 1px solid #eee; padding: 5px 0; font-size: 14px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -26,9 +28,7 @@ BICHO_MAP = {
 def gerar_milhar_do_grupo(grupo):
     dezenas = [int(grupo)*4, int(grupo)*4-1, int(grupo)*4-2, int(grupo)*4-3]
     if grupo == "25": dezenas = [0, 99, 98, 97]
-    prefixo = random.randint(10, 99)
-    dezena = random.choice(dezenas)
-    return f"{prefixo}{str(dezena).zfill(2)}"
+    return f"{random.randint(10, 99)}{str(random.choice(dezenas)).zfill(2)}"
 
 def processar_texto_v2(texto):
     resultados = []
@@ -47,64 +47,70 @@ def processar_texto_v2(texto):
 if 'vagas_resultados' not in st.session_state:
     st.session_state.vagas_resultados = []
 
-st.title("🏆 Monitor Vip Pro")
-
-# --- BARRA LATERAL (CONFIGURAÇÃO) ---
+# --- SIDEBAR DE CONTROLE ---
 with st.sidebar:
-    st.header("⚙️ Entradas")
-    loto_selecionada = st.selectbox("Escolha a Loteria:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
-    hora_input = st.text_input("Horário (Ex: 11:00):", "02:00")
-    texto_input = st.text_area("Cole os resultados aqui:", height=150)
+    st.title("🏆 Configurações")
+    loto_selecionada = st.selectbox("Loteria Ativa:", ["NACIONAL", "PT-RIO", "LOOK", "MALUQUINHA"])
+    hora_input = st.text_input("Horário do Sorteio:", "02:00")
+    texto_area = st.text_area("Cole o resultado aqui:", height=200, placeholder="Ex: 3945 12")
     
-    if st.button("🚀 Salvar no Painel", use_container_width=True):
-        if texto_input:
-            novos = processar_texto_v2(texto_input)
+    if st.button("🚀 Processar e Salvar", use_container_width=True):
+        if texto_area:
+            novos = processar_texto_v2(texto_area)
             for n in novos:
                 n["Loteria"], n["Horário"] = loto_selecionada, hora_input
-                # Trava contra duplicidade
                 if not any(d['Horário'] == n['Horário'] and d['Prêmio'] == n['Prêmio'] and d['Loteria'] == n['Loteria'] for d in st.session_state.vagas_resultados):
                     st.session_state.vagas_resultados.append(n)
             st.rerun()
 
-    if st.button("🗑️ Limpar Tudo", use_container_width=True):
+    if st.button("🗑️ Limpar Painel (Novo Dia)", use_container_width=True):
         st.session_state.vagas_resultados = []
         st.rerun()
 
-# --- ÁREA PRINCIPAL (PALPITES) ---
-if st.session_state.vagas_resultados:
-    df_base = pd.DataFrame(st.session_state.vagas_resultados)
+# --- PAINEL PRINCIPAL ---
+st.header(f"📊 Monitor VIP Pro - {loto_selecionada}")
+
+# 1. Seção de Palpites e Radar
+st.subheader("💡 Inteligência de Palpites")
+df_base = pd.DataFrame(st.session_state.vagas_resultados) if st.session_state.vagas_resultados else pd.DataFrame()
+
+c1, c2, c3 = st.columns(3)
+
+if not df_base.empty and loto_selecionada in df_base['Loteria'].values:
     df_loto = df_base[df_base['Loteria'] == loto_selecionada]
-    
-    # Palpite baseado nos atrasos da loteria selecionada
     saíram = df_loto[df_loto['Prêmio'] == 1]['Grupo'].unique()
     atrasados = [g for g in BICHO_MAP.keys() if g not in saíram]
     
-    c1, c2 = st.columns(2)
     if atrasados:
         c1.metric("🎯 Bicho Sugerido", BICHO_MAP[atrasados[0]])
         c2.metric("🎲 Milhar VIP", gerar_milhar_do_grupo(atrasados[0]))
-
-    st.divider()
-
-    # --- GRADE HORIZONTAL CLEAN ---
-    if not df_loto.empty:
-        horarios_disponiveis = sorted(df_loto['Horário'].unique())
-        # Corrigido: Agora o parêntese fecha certinho!
-        colunas_horario = st.columns(len(horarios_disponiveis))
-        
-        for i, hr in enumerate(horarios_disponiveis):
-            with colunas_horario[i]:
-                st.markdown(f"""<div style="background-color:#262730; color:white; text-align:center; border-radius:5px; padding:2px; font-weight:bold; margin-bottom:10px;">{hr}</div>""", unsafe_allow_html=True)
-                
-                dados_do_horario = df_loto[df_loto['Horário'] == hr].sort_values('Prêmio')
-                for p in range(1, 6):
-                    row = dados_do_horario[dados_do_horario['Prêmio'] == p]
-                    if not row.empty:
-                        # Estilo Milhar + Bicho Lado a Lado
-                        st.write(f"**{p}º** `{row.iloc[0]['Milhar']}` | {row.iloc[0]['Bicho']}")
-                    else:
-                        st.write(f"**{p}º** `----` | ...")
-    else:
-        st.info(f"Nenhum dado salvo para {loto_selecionada} hoje.")
+        c3.metric("🐢 Atrasados (Total)", len(atrasados))
 else:
-    st.warning("👈 Comece colando um resultado na barra lateral!")
+    c1.info("Aguardando dados...")
+    c2.info("Aguardando dados...")
+    c3.info("Aguardando dados...")
+
+st.divider()
+
+# 2. Grade de Acompanhamento Diário
+st.subheader("📅 Acompanhamento por Horário")
+
+if not df_base.empty and loto_selecionada in df_base['Loteria'].values:
+    df_loto = df_base[df_base['Loteria'] == loto_selecionada]
+    horarios = sorted(df_loto['Horário'].unique())
+    
+    # Criar colunas dinâmicas (estilo Col 1, Col 2...)
+    colunas_grade = st.columns(len(horarios))
+    
+    for i, hr in enumerate(horarios):
+        with colunas_grade[i]:
+            st.markdown(f'<div class="header-col">{hr}</div>', unsafe_allow_html=True)
+            dados_hr = df_loto[df_loto['Horário'] == hr].sort_values('Prêmio')
+            for p in range(1, 6):
+                row = dados_hr[dados_hr['Prêmio'] == p]
+                if not row.empty:
+                    st.markdown(f"**{p}º** `{row.iloc[0]['Milhar']}` | {row.iloc[0]['Bicho']}")
+                else:
+                    st.write(f"**{p}º** `----` | ...")
+else:
+    st.warning("Nenhum resultado processado para esta
