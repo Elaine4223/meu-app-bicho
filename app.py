@@ -11,6 +11,7 @@ st.markdown("""
     <style>
     .stMetric { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: white; }
     .header-col { background-color: #1E1E1E; color: #FFD700; text-align: center; font-weight: bold; border-radius: 5px; padding: 5px; margin-bottom: 10px; }
+    .atrasados-box { background-color: #ffebee; padding: 10px; border-radius: 10px; border: 1px solid #ffcdd2; color: #b71c1c; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -72,17 +73,27 @@ st.title(f"📊 Monitor VIP - {loto_selecionada}")
 st.subheader("💡 Análise e Palpites")
 df_base = pd.DataFrame(st.session_state.vagas_resultados) if st.session_state.vagas_resultados else pd.DataFrame()
 
-c1, c2, c3 = st.columns(3)
 if not df_base.empty and loto_selecionada in df_base['Loteria'].values:
     df_loto = df_base[df_base['Loteria'] == loto_selecionada]
     saíram = df_loto[df_loto['Prêmio'] == 1]['Grupo'].unique()
-    atrasados = [g for g in BICHO_MAP.keys() if g not in saíram]
+    atrasados_cod = [g for g in BICHO_MAP.keys() if g not in saíram]
+    atrasados_nomes = [BICHO_MAP[g] for g in atrasados_cod]
     
-    if atrasados:
-        c1.metric("🎯 Bicho Sugerido", BICHO_MAP[atrasados[0]])
-        c2.metric("🎲 Milhar VIP", gerar_milhar_do_grupo(atrasados[0]))
-        c3.metric("🐢 Bichos em Atraso", len(atrasados))
+    c1, c2, c3 = st.columns(3)
+    if atrasados_cod:
+        c1.metric("🎯 Bicho Sugerido", BICHO_MAP[atrasados_cod[0]])
+        c2.metric("🎲 Milhar VIP", gerar_milhar_do_grupo(atrasados_cod[0]))
+        c3.metric("🐢 Total Atrasados", len(atrasados_nomes))
+        
+        # --- NOVA SEÇÃO VISÍVEL DE ATRASADOS ---
+        st.markdown(f"""
+            <div class="atrasados-box">
+                🐢 Bichos que ainda não saíram no 1º Prêmio: <br>
+                <span style="font-size: 14px; font-weight: normal;">{', '.join(atrasados_nomes)}</span>
+            </div>
+        """, unsafe_allow_html=True)
 else:
+    c1, c2, c3 = st.columns(3)
     c1.info("Aguardando dados...")
     c2.info("Aguardando dados...")
     c3.info("Aguardando dados...")
@@ -94,7 +105,7 @@ st.subheader("📅 Tabela de Acompanhamento")
 if not df_base.empty and loto_selecionada in df_base['Loteria'].values:
     df_loto = df_base[df_base['Loteria'] == loto_selecionada]
     horarios = sorted(df_loto['Horário'].unique())
-    colunas_grade = st.columns(len(horarios))
+    colunas_grade = st.columns(len(horarios) if len(horarios) > 0 else 1)
     
     for i, hr in enumerate(horarios):
         with colunas_grade[i]:
